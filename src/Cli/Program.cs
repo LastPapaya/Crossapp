@@ -1,4 +1,8 @@
-﻿using Core;
+﻿using System.Text;
+using Core;
+
+
+Console.OutputEncoding = Encoding.UTF8;
 
 EnvironmentReport report = EnvironmentInfo.Collect();
 
