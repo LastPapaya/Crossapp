@@ -1,0 +1,14 @@
+id;itemName;rarity;quantity;baseValue;note
+SLOT-001;Health Potion;Common;50;12.50;Restores 50 HP
+SLOT-002;Mana Potion;Common;30;15.00;
+SLOT-003;Iron Sword;Common;1;150.00;Starter Weapon
+SLOT-004;Dragon Shield;Epic;1;2500.00;Fire Protection
+SLOT-005;Ring of Power;Legendary;1;9999.99;Unique Item
+SLOT-006;Leather Boots;Common;2;45.50;
+SLOT-007;Golden Apple;Rare;10;200.00;
+SLOT-008;Scroll of Teleport;Uncommon;5;75.00;Single Use
+SLOT-009;Bow of Precision;Rare;1;850.00;+10% Crit
+SLOT-010;Antidote;Common;15;25.00;
+SLOT-011;Broken Armor;Common;невідомо;50.00
+SLOT-012;;Epic;1;1000.00
+SLOT-013;Mystery Key;Rare;1;безцінно;Unknown key
