@@ -1,35 +1,31 @@
 ﻿using System.Text;
-using Core.Dto;
-using Core.Import;
+using Core.Domain;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-string path = args.Length > 0 ? args[0] : Path.Combine("data", "sample.csv");
+Console.WriteLine("Сценарій 1: успіх ");
+InventoryItem potion = InventoryItem.Create("SLOT-001", "Health Potion", "Common", 10, 12.50m, "Restores 50 HP");
+Console.WriteLine(potion);
 
-if (!File.Exists(path))
+potion.AddItems(5);
+potion.RemoveItems(3);
+Console.WriteLine(potion);
+
+Console.WriteLine();
+Console.WriteLine("Сценарій 2: порушення інваріантів");
+TryDo("витрата більшої кількості, ніж є в інвентарі", () => potion.RemoveItems(100));
+TryDo("створення предмета з порожньою назвою", () => InventoryItem.Create("SLOT-002", "", "Rare", 1, 100.0m));
+TryDo("від'ємна кількість при створенні", () => InventoryItem.Create("SLOT-003", "Iron Sword", "Common", -5, 150.0m));
+
+static void TryDo(string title, Action action)
 {
-    Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
-    return 1;
-}
-
-ImportResult<InventoryItemDto> result = InventoryCsvImporter.Load(path);
-
-Console.WriteLine($"Завантажено записів: {result.Items.Count}");
-Console.WriteLine(new string('-', 70));
-
-foreach (InventoryItemDto item in result.Items.Take(5))
-{
-    Console.WriteLine($" {item.Id,-9} {item.ItemName,-20} {item.Rarity,-10} {item.Quantity,4} шт. {item.BaseValue,8:F2} gold");
-}
-
-if (result.Errors.Count > 0)
-{
-    Console.WriteLine();
-    Console.WriteLine($"Пропущено рядків: {result.Errors.Count}");
-    foreach (string error in result.Errors)
+    try
     {
-        Console.WriteLine($" ! {error}");
+        action();
+        Console.WriteLine($"[!] {title}: виняток НЕ спрацював, інваріант відсутній!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"{title}: {ex.GetType().Name} - {ex.Message}");
     }
 }
-
-return 0;
