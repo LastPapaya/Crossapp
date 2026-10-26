@@ -1,28 +1,44 @@
 ﻿using System.Text;
-using Core.Domain;
+using Core;
+using Core.Abstractions;
+using Core.Services;
+using Core.Storage;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-Console.WriteLine("Сценарій 1: успіх ");
-InventoryItem potion = InventoryItem.Create("SLOT-001", "Health Potion", "Common", 10, 12.50m, "Restores 50 HP");
-Console.WriteLine(potion);
+bool useFile = args.Contains("--file");
+string dataPath = Path.Combine(AppContext.BaseDirectory, "data", "catalog.json");
 
-potion.AddItems(5);
-potion.RemoveItems(3);
-Console.WriteLine(potion);
+IInventoryStore store = useFile
+    ? new FileInventoryStore(dataPath)
+    : new InMemoryInventoryStore(SampleData.Items());
+
+var service = new InventoryService(store);
+
+Console.WriteLine($"[INFO] Сховище: {store.GetType().Name}");
+Console.WriteLine();
+
+
+Console.WriteLine("Перегляд та додавання");
+var created = service.AddItem("Mana Potion", "Common", 5, 20.0m, "Restores MP");
+service.AddQuantity(created.Id, 10);
+
+foreach (var item in service.GetAll())
+{
+    Console.WriteLine(item);
+}
+
 
 Console.WriteLine();
-Console.WriteLine("Сценарій 2: порушення інваріантів");
-TryDo("витрата більшої кількості, ніж є в інвентарі", () => potion.RemoveItems(100));
-TryDo("створення предмета з порожньою назвою", () => InventoryItem.Create("SLOT-002", "", "Rare", 1, 100.0m));
-TryDo("від'ємна кількість при створенні", () => InventoryItem.Create("SLOT-003", "Iron Sword", "Common", -5, 150.0m));
+Console.WriteLine("Відмова");
+TryDo("видалення неіснуючого ID", () => service.RemoveQuantity("NOT-FOUND", 5));
 
 static void TryDo(string title, Action action)
 {
     try
     {
         action();
-        Console.WriteLine($"[!] {title}: виняток НЕ спрацював, інваріант відсутній!");
+        Console.WriteLine($"[!] {title}: виняток НЕ спрацював!");
     }
     catch (Exception ex)
     {
