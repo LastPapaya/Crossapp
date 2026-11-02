@@ -67,3 +67,14 @@ dotnet publish src/Cli -c Release -r win-x64 --self-contained false -o publish/f
 - **Реалізації сховища**: `InMemoryInventoryStore` (у пам'яті) та `FileInventoryStore` (файлове сховище з JSON-серіалізацією)
 - **Сервісний шар**: `InventoryService` (реалізує бізнес-операції над сутностями через інтерфейс)
 - **Composition Root**: реалізовано в `src/Cli/Program.cs` із підтримкою перемикання через аргумент `--file`.
+
+
+
+## Лабораторна робота 6. Доменні події, делегати Action/Func, лямбди
+
+- **Доменні події**: `CatalogChangedEventArgs` та перелічення `CatalogChangeKind` (`Added`, `Received`, `Issued`, `Removed`).
+- **Подія в сервісі**: `InventoryService` містить подію `Changed` на базі `EventHandler<TEventArgs>`, яка підіймається виключно після успішної зміни стану.
+- **Обробники в Cli**: 
+  - Локальний метод `OnCatalogChanged` для виведення в консоль та асинхронного/синхронного дописування у файл `logs/app.log`.
+  - Лямбда-вираз із замиканням для підрахунку загальної кількості подій.
+- **Делегати Func**: Метод `FindAll` приймає предикат `Func<Product, bool>` (або `Func<InventoryItem, bool>`) для фільтрації даних
