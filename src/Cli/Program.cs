@@ -1,12 +1,14 @@
 ﻿using System.Text;
 using Core;
 using Core.Abstractions;
-using Core.Events;
+using Core.Domain;
+using Core.Reports;
 using Core.Services;
 using Core.Storage;
 
 Console.OutputEncoding = Encoding.UTF8;
 
+// Визначення джерела (пам'ять або файл за прапорцем --file)
 bool useFile = args.Contains("--file");
 string dataPath = Path.Combine(AppContext.BaseDirectory, "data", "catalog.json");
 
@@ -15,66 +17,67 @@ IInventoryStore store = useFile
     : new InMemoryInventoryStore(SampleData.Items());
 
 var service = new InventoryService(store);
+var items = service.GetAll();
 
+// Вибір підкоманди звітів (ігноруємо прапорець --file, якщо він є)
+var command = args.FirstOrDefault(a => !a.StartsWith("--")) ?? "report-top";
 
-var logPath = Path.Combine(AppContext.BaseDirectory, "logs", "app.log");
-Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-
-void OnCatalogChanged(object? sender, CatalogChangedEventArgs e)
+switch (command)
 {
-    var line = $"{e.At:HH:mm:ss} {e.Kind,-8} {e.Id} {e.Delta,4:+0;-0} → залишок {e.QuantityAfter}";
-    Console.WriteLine(line);
-    File.AppendAllText(logPath, line + Environment.NewLine);
+    case "report-top":
+        Print(ReportService.TopByQuantity(items, 5));
+        break;
+
+    case "report-low":
+        Print(ReportService.LowStock(items, 5));
+        break;
+
+    case "report-groups":
+        foreach (var g in ReportService.ByRarity(items))
+        {
+            Console.WriteLine($"Рідкість: {g.Key,-10} | позицій: {g.Count,3} | сумарна кількість: {g.TotalQuantity,6}");
+        }
+        break;
+
+    case "report-sum":
+        var t = ReportService.Totals(items);
+        Console.WriteLine($"Всього унікальних предметів: {t.Items}, сумарна кількість: {t.TotalQuantity}, середнє: {t.AverageQuantity:F2}, макс в стоках: {t.MaxQuantity}");
+        break;
+
+    case "demo-deferred":
+        RunDeferredExecutionDemo(items);
+        break;
+
+    default:
+        Console.WriteLine("Доступні команди: report-top | report-low | report-groups | report-sum | demo-deferred");
+        break;
 }
 
-
-service.Changed += OnCatalogChanged;
-
-
-int changes = 0;
-service.Changed += (_, _) => changes++;
-
-Console.WriteLine($"[INFO] Сховище: {store.GetType().Name}");
-Console.WriteLine();
-
-
-Console.WriteLine("Сценарій: робота з подіями");
-var created = service.AddItem("Magic Shield", "Rare", 2, 250.0m, "Sturdy shield");
-service.AddQuantity(created.Id, 3);
-
-Console.WriteLine($"Подій отримано (лічильник): {changes}");
-
-
-service.Changed -= OnCatalogChanged;
-
-
-service.AddQuantity(created.Id, 5); 
-Console.WriteLine($"Подій отримано після відписки (тільки лямбда): {changes}");
-
-Console.WriteLine();
-
-
-Console.WriteLine("Сценарій відмови");
-TryDo("витрата більшої кількості, ніж є в інвентарі", () => service.RemoveQuantity(created.Id, 1000));
-
-
-Console.WriteLine();
-Console.WriteLine("Пошук через Func (предмети з кількістю < 10)");
-var lowStockItems = service.FindAll(p => p.Quantity < 10);
-foreach (var item in lowStockItems)
+// Допоміжний метод для виведення рядків звітів
+static void Print(IReadOnlyList<InventoryReportLine> lines)
 {
-    Console.WriteLine($"Знайдено дефіцитний предмет: {item.ItemName} (Кількість: {item.Quantity})");
+    foreach (var l in lines)
+    {
+        Console.WriteLine($"{l.Id,-10} {l.ItemName,-20} [{l.Rarity,-8}] Кількість: {l.Quantity,3} | Вартість: {l.BaseValue} золота");
+    }
 }
 
-static void TryDo(string title, Action action)
+//відкладене виконання LINQ-запитів
+static void RunDeferredExecutionDemo(IEnumerable<InventoryItem> initialItems)
 {
-    try
-    {
-        action();
-        Console.WriteLine($"[!] {title}: виняток НЕ спрацював!");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"{title}: {ex.GetType().Name} - {ex.Message}");
-    }
+    var source = initialItems.ToList();
+    var query = source.Where(item => item.Quantity < 5); // Запит побудовано, але ще не виконано
+
+    Console.WriteLine($"[ДЕМО] Дефіцитних предметів до змін: {query.Count()}");
+
+    // Змінюємо джерело ПІСЛЯ побудови запиту, але ДО його виконання
+    var newItem = InventoryItem.Create("TEST01", "Health Potion", "Common", 2, 10.0m, "Small potion");
+    source.Add(newItem);
+
+    Console.WriteLine($"[ДЕМО] Дефіцитних предметів після додавання: {query.Count()}"); 
+
+    var snapshot = query.ToList(); // Матеріалізація запиту
+    source.Clear();
+
+    Console.WriteLine($"[ДЕМО] У матеріалізованому знімку залишилось: {snapshot.Count}"); 
 }
