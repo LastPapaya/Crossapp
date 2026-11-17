@@ -51,4 +51,23 @@ public sealed class InventoryService(IInventoryStore store)
     
     public IReadOnlyList<InventoryItem> FindAll(Func<InventoryItem, bool> predicate) =>
         _store.List().Where(predicate).ToList();
+
+    public async Task<int> ImportAsync(ICatalogImporter importer, string path, CancellationToken ct = default)
+{
+    var items = await importer.LoadAsync(path, ct);
+    var added = 0;
+    
+    foreach (var item in items)
+    {
+        ct.ThrowIfCancellationRequested();
+        
+        if (_store.GetById(item.Id) is not null) 
+            continue; // Ідемпотентність: якщо вже є, пропускаємо
+            
+        _store.Add(item);
+        OnChanged(item, CatalogChangeKind.Added, item.Quantity);
+        added++;
+    }
+    return added;
+}
 }
